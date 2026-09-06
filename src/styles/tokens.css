@@ -1,0 +1,150 @@
+/*
+ * Design tokens.
+ *
+ * Every colour, shadow, radius and duration in the app comes from here. A
+ * component that invents its own #hex is the thing that makes a UI stop
+ * looking like one product, so there are none.
+ *
+ * The palette is bright but not neon: saturated hues sitting on a warm cream
+ * ground, which stays readable for a long play session in a way that pure
+ * white plus full-saturation does not.
+ */
+
+:root {
+  /* ---- Brand hues ---------------------------------------------------- */
+  --sky: #5b8def;
+  --sky-dark: #3c6ed0;
+  --sky-light: #a9c6ff;
+
+  --purple: #9b6be8;
+  --purple-dark: #7a4bc9;
+  --purple-light: #d3bdf7;
+
+  --sun: #ffc94a;
+  --sun-dark: #e5a51c;
+  --sun-light: #ffe6a8;
+
+  --coral: #ff7a5c;
+  --coral-dark: #e05334;
+  --coral-light: #ffbaa9;
+
+  --mint: #4cd7a0;
+  --mint-dark: #22a97a;
+  --mint-light: #a9eed2;
+
+  --pink: #ff8fb1;
+  --pink-dark: #e5688e;
+  --pink-light: #ffc9d9;
+
+  /* ---- Surfaces ------------------------------------------------------ */
+  --cream: #fff9f0;
+  --cream-2: #fff3e2;
+  --paper: #ffffff;
+  --ink: #35305a;
+  --ink-soft: #6b6590;
+  --ink-faint: #9a95b8;
+  --hairline: #ece4f5;
+
+  /* ---- Player colours ------------------------------------------------
+   * Each player gets a hue, a darker edge for outlines, and a pale wash for
+   * their home area. Colour is never the ONLY signal -- every player also
+   * carries an animal avatar and a name.
+   */
+  --p-red: #ff5c5c;
+  --p-red-dark: #cc3b3b;
+  --p-red-wash: #ffe0e0;
+
+  --p-green: #3ecf8e;
+  --p-green-dark: #21a06a;
+  --p-green-wash: #dbf7ea;
+
+  --p-yellow: #ffc93c;
+  --p-yellow-dark: #d69c10;
+  --p-yellow-wash: #fff2cf;
+
+  --p-blue: #4d96ff;
+  --p-blue-dark: #2a6fd1;
+  --p-blue-wash: #ddeaff;
+
+  /* ---- Shape --------------------------------------------------------- */
+  --r-sm: 10px;
+  --r-md: 16px;
+  --r-lg: 24px;
+  --r-xl: 34px;
+  --r-pill: 999px;
+
+  /* Soft, warm shadows -- never grey, which reads as dirt over cream. */
+  --shadow-sm: 0 2px 6px rgba(84, 61, 120, 0.12);
+  --shadow-md: 0 6px 18px rgba(84, 61, 120, 0.16);
+  --shadow-lg: 0 16px 40px rgba(84, 61, 120, 0.22);
+  --shadow-inset: inset 0 -4px 0 rgba(0, 0, 0, 0.14);
+
+  /* ---- Type ---------------------------------------------------------- */
+  --font: "Baloo 2", "Nunito", "Segoe UI Variable Display", "Segoe UI", system-ui,
+    -apple-system, "Helvetica Neue", sans-serif;
+
+  --t-xs: clamp(0.82rem, 0.5vw + 0.7rem, 0.95rem);
+  --t-sm: clamp(0.95rem, 0.6vw + 0.8rem, 1.08rem);
+  --t-md: clamp(1.1rem, 0.8vw + 0.9rem, 1.3rem);
+  --t-lg: clamp(1.35rem, 1.4vw + 1rem, 1.8rem);
+  --t-xl: clamp(1.8rem, 2.6vw + 1.1rem, 2.8rem);
+  --t-2xl: clamp(2.3rem, 4.5vw + 1.2rem, 4rem);
+
+  /* ---- Motion --------------------------------------------------------
+   * Durations are read from CSS by the JS animation loops too, so "calm" and
+   * "off" in Settings genuinely slow or stop movement everywhere rather than
+   * only in the parts written in CSS.
+   */
+  --speed: 1;
+  --dur-fast: 140ms;
+  --dur: 260ms;
+  --dur-slow: 480ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* Layout */
+  --gutter: clamp(12px, 3vw, 28px);
+  --touch: 56px;
+}
+
+/* "Calm" keeps the feedback but takes out the bounce and the idle motion. */
+:root[data-animation="calm"] {
+  --speed: 0.7;
+  --dur-fast: 100ms;
+  --dur: 170ms;
+  --dur-slow: 260ms;
+  --ease-bounce: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* "Off" removes movement entirely. State still changes -- it just snaps. */
+:root[data-animation="off"] {
+  --speed: 0;
+  --dur-fast: 1ms;
+  --dur: 1ms;
+  --dur-slow: 1ms;
+}
+
+:root[data-animation="off"] *,
+:root[data-animation="off"] *::before,
+:root[data-animation="off"] *::after {
+  animation-duration: 1ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 1ms !important;
+}
+
+/*
+ * A device set to "reduce motion" gets the calm treatment automatically. The
+ * Settings control can still override it in either direction, because the
+ * data-animation attribute is set explicitly on <html> and wins by
+ * specificity.
+ */
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-animation]) {
+    --speed: 0.6;
+    --dur-fast: 100ms;
+    --dur: 150ms;
+    --dur-slow: 220ms;
+    --ease-bounce: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}

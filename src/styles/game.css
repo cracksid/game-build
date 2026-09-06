@@ -1,0 +1,887 @@
+/*
+ * Boards, tokens, dice and the in-game HUD.
+ *
+ * Both boards are square and sized from the smaller of the available width
+ * and height, so they stay whole on a tall phone and a wide laptop alike
+ * without any breakpoint deciding which is which.
+ */
+
+.game-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  min-height: 0;
+}
+
+.game-body {
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: clamp(12px, 2.4vw, 30px);
+  min-height: 0;
+  min-width: 0;
+}
+
+/*
+ * Side by side when the screen is wider than it is tall; stacked when it is
+ * taller than it is wide.
+ *
+ * The obvious rule -- "stack on small screens" -- is wrong, and wrong in the
+ * worst direction: a phone held sideways is 812x375, so a width-based rule
+ * stacks it and squeezes the board into the ~70px left over. Shape is the
+ * thing that actually decides where the controls should go.
+ */
+@media (max-aspect-ratio: 1 / 1) {
+  .game-body {
+    flex-direction: column;
+  }
+}
+
+/*
+ * The board is a square that fills whatever space the HUD leaves over.
+ *
+ * Rather than guessing the HUD's height in a media query (which is wrong the
+ * moment a name wraps or a fourth player appears), the wrapper takes the
+ * leftover flex space and the board sizes itself to the SMALLER of that
+ * box's two sides. One rule, correct at every aspect ratio.
+ */
+.board-wrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: grid;
+  place-items: center;
+  /*
+   * A SIZE CONTAINER. This is the piece that makes the board just work.
+   *
+   * Sizing a square to "the smaller side of my parent" is circular in plain
+   * flexbox: the parent measures its child, and the child wants to measure
+   * the parent. `container-type: size` cuts the loop -- the wrapper takes its
+   * size from the layout above it and ignores its contents entirely, so the
+   * board can then ask for min(100cqw, 100cqh) and get a real answer.
+   *
+   * One rule covers phone portrait, tablet landscape and desktop; there is no
+   * breakpoint anywhere guessing how tall the controls are.
+   */
+  container-type: size;
+}
+
+.board-wrap > * {
+  /* Fallback for anything without container queries: fills the box. */
+  width: 100%;
+  height: 100%;
+  /* The real rule: a square as big as the shorter side allows. */
+  width: min(100cqw, 100cqh);
+  height: min(100cqw, 100cqh);
+}
+
+/* ---- Ludo ------------------------------------------------------------ */
+
+.ludo {
+  position: relative;
+  border-radius: var(--r-lg);
+  background: #fffdf8;
+  box-shadow:
+    var(--shadow-lg),
+    inset 0 0 0 4px rgba(255, 255, 255, 0.9);
+  overflow: hidden;
+}
+
+.ludo-yard {
+  position: absolute;
+  border-radius: var(--r-md);
+  transition: box-shadow var(--dur) var(--ease-out), filter var(--dur) var(--ease-out);
+}
+
+.ludo-yard--empty {
+  filter: grayscale(0.7) opacity(0.45);
+}
+
+/*
+ * The active player's corner is ringed -- a second, non-colour cue for whose
+ * turn it is.
+ *
+ * The ring is INSET. The yards sit flush against the four corners of the
+ * board, and the board clips its overflow to keep its rounded shape, so an
+ * outset ring is simply invisible on three of its four sides.
+ */
+.ludo-yard--active {
+  box-shadow:
+    inset 0 0 0 4px #fff,
+    inset 0 0 0 8px var(--ink),
+    inset 0 0 0 12px #fff;
+  filter: brightness(1.05) saturate(1.1);
+  animation: yard-pulse 1.8s var(--ease-in-out) infinite;
+}
+
+@keyframes yard-pulse {
+  50% {
+    filter: brightness(1.14) saturate(1.2);
+  }
+}
+
+.ludo-yard__inner {
+  position: absolute;
+  inset: 12%;
+  border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.ludo-yard__slot {
+  position: absolute;
+  width: 22%;
+  height: 22%;
+  margin: -11% 0 0 -11%;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.07);
+}
+
+.ludo-cell {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  background: #fff;
+  box-shadow: inset 0 0 0 1.5px var(--hairline);
+  transition: background var(--dur) var(--ease-out);
+}
+
+.ludo-cell--path {
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.55);
+}
+
+/* Where a chosen token would land. Pulses so it reads at a glance. */
+.ludo-cell--target {
+  background: var(--sun-light) !important;
+  box-shadow:
+    inset 0 0 0 3px var(--sun-dark),
+    0 0 14px rgba(255, 201, 74, 0.7);
+  animation: target-pulse 1.1s var(--ease-in-out) infinite;
+  z-index: 5;
+}
+
+@keyframes target-pulse {
+  50% {
+    box-shadow:
+      inset 0 0 0 3px var(--coral),
+      0 0 22px rgba(255, 122, 92, 0.8);
+  }
+}
+
+.ludo-cell__star {
+  font-size: min(2.4vw, 15px);
+  color: var(--sun-dark);
+  line-height: 1;
+}
+
+.ludo-cell__arrow {
+  font-size: min(2vw, 13px);
+  font-weight: 900;
+  line-height: 1;
+  opacity: 0.6;
+}
+
+.ludo-centre {
+  position: absolute;
+  filter: drop-shadow(0 4px 10px rgba(84, 61, 120, 0.25));
+}
+
+.ludo-token {
+  position: absolute;
+  width: 5.4%;
+  height: 5.4%;
+  padding: 0;
+  border: none;
+  background: none;
+  transform: translate(-50%, -50%);
+  cursor: default;
+  /* The single most important line in this file: moving `left`/`top` is what
+     makes a token WALK between squares instead of teleporting. */
+  transition:
+    left calc(var(--dur) * 0.62) var(--ease-in-out),
+    top calc(var(--dur) * 0.62) var(--ease-in-out);
+  z-index: 20;
+}
+
+.ludo-token__body {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 28%, #fff6 0%, transparent 45%), var(--token);
+  box-shadow:
+    0 0 0 2.5px #fff,
+    0 3px 0 var(--token-edge),
+    var(--shadow-sm);
+  display: grid;
+  place-items: center;
+  transition: transform var(--dur) var(--ease-bounce);
+}
+
+.ludo-token__face {
+  font-size: min(2.6vw, 17px);
+  line-height: 1;
+  transform: translateY(-1px);
+}
+
+/* A token you may tap: bounces, glows, and grows the hit area. */
+.ludo-token--pick {
+  cursor: pointer;
+  z-index: 40;
+}
+
+.ludo-token--pick .ludo-token__body {
+  animation: token-bounce 0.72s var(--ease-in-out) infinite;
+  box-shadow:
+    0 0 0 3px #fff,
+    0 0 0 6px var(--sun),
+    0 4px 0 var(--token-edge),
+    0 0 18px rgba(255, 201, 74, 0.9);
+}
+
+.ludo-token--pick:hover .ludo-token__body {
+  transform: scale(1.16);
+}
+
+.ludo-token--pick:active .ludo-token__body {
+  transform: scale(0.92);
+}
+
+@keyframes token-bounce {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-16%) scale(1.06);
+  }
+}
+
+.ludo-token--base .ludo-token__body {
+  opacity: 0.96;
+}
+
+.ludo-token--captured .ludo-token__body {
+  animation: token-knocked 0.55s var(--ease-bounce);
+}
+
+@keyframes token-knocked {
+  0% {
+    transform: scale(1) rotate(0deg);
+  }
+  35% {
+    transform: scale(1.5) rotate(-25deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+.ludo-token--home .ludo-token__body {
+  animation: token-arrived 0.7s var(--ease-bounce);
+  box-shadow:
+    0 0 0 2.5px #fff,
+    0 3px 0 var(--token-edge),
+    0 0 16px var(--sun);
+}
+
+@keyframes token-arrived {
+  0% {
+    transform: scale(0.6);
+  }
+  55% {
+    transform: scale(1.35);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* ---- Snakes & Ladders ------------------------------------------------ */
+
+.sl {
+  position: relative;
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+  background: #fffdf8;
+}
+
+.sl__grid {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  grid-template-rows: repeat(10, 1fr);
+}
+
+.sl-cell {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.85);
+  filter: saturate(0.75) brightness(1.06);
+}
+
+/*
+ * The numbers sit ABOVE the snakes and ladders, with a white halo. The art
+ * layer crosses most of the board, and a square whose number you cannot read
+ * is a square a child cannot count to.
+ */
+.sl-cell__num {
+  position: relative;
+  z-index: 7;
+  padding: 6% 0 0 8%;
+  font-size: clamp(7px, 1.5vw, 15px);
+  font-weight: 800;
+  color: #3d3663;
+  line-height: 1;
+  text-shadow:
+    0 0 3px #fff,
+    0 0 3px #fff,
+    0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+/* A small marker on snake heads and ladder feet, so the square itself says
+   what will happen -- not only the drawing running across it. */
+.sl-cell__hint {
+  position: absolute;
+  right: 5%;
+  bottom: 3%;
+  z-index: 7;
+  font-size: clamp(8px, 1.6vw, 15px);
+  line-height: 1;
+  filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 2px #fff);
+}
+
+.sl-cell--finish {
+  background: linear-gradient(135deg, var(--sun) 0%, var(--coral) 100%) !important;
+  filter: none;
+}
+
+.sl-cell--finish .sl-cell__num {
+  color: #fff;
+  opacity: 1;
+}
+
+.sl-cell--target {
+  box-shadow:
+    inset 0 0 0 3px var(--purple),
+    0 0 14px rgba(155, 107, 232, 0.6);
+  z-index: 4;
+}
+
+.sl__art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 6;
+  filter: drop-shadow(0 2px 3px rgba(84, 61, 120, 0.25));
+}
+
+.sl-ladder,
+.sl-snake {
+  animation: art-in var(--dur-slow) var(--ease-bounce) both;
+  transform-origin: center;
+}
+
+@keyframes art-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.sl-piece {
+  position: absolute;
+  width: 7.2%;
+  height: 7.2%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 28%, #fff7 0%, transparent 48%), var(--piece);
+  box-shadow:
+    0 0 0 2.5px #fff,
+    0 3px 0 var(--piece-edge),
+    var(--shadow-sm);
+  display: grid;
+  place-items: center;
+  z-index: 30;
+  /* Same idea as the Ludo token: animate position, never jump. */
+  transition:
+    left calc(var(--dur) * 0.6) var(--ease-in-out),
+    top calc(var(--dur) * 0.6) var(--ease-in-out);
+}
+
+.sl-piece__face {
+  font-size: clamp(9px, 2.3vw, 20px);
+  line-height: 1;
+}
+
+/* Not started yet: smaller, ringed, waiting on square 1. */
+.sl-piece--waiting {
+  transform: translate(-50%, -50%) scale(0.74);
+  box-shadow:
+    0 0 0 2px #fff,
+    0 0 0 4px rgba(255, 255, 255, 0.6),
+    0 2px 0 var(--piece-edge);
+  opacity: 0.92;
+}
+
+.sl-piece--active {
+  box-shadow:
+    0 0 0 3px #fff,
+    0 0 0 6px var(--sun),
+    0 3px 0 var(--piece-edge),
+    0 0 16px rgba(255, 201, 74, 0.8);
+}
+
+/* A climb pops upward; a slide wobbles down. Both are slower than a normal
+   step so the special thing that just happened is impossible to miss. */
+.sl-piece--climb {
+  animation: piece-climb 0.75s var(--ease-bounce);
+  transition-duration: 0.75s;
+}
+
+@keyframes piece-climb {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  40% {
+    transform: translate(-50%, -75%) scale(1.3);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+.sl-piece--slide {
+  animation: piece-slide 0.85s var(--ease-in-out);
+  transition-duration: 0.85s;
+}
+
+@keyframes piece-slide {
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  30% {
+    transform: translate(-50%, -50%) rotate(-18deg) scale(0.9);
+  }
+  70% {
+    transform: translate(-50%, -50%) rotate(16deg) scale(0.95);
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(0deg) scale(1);
+  }
+}
+
+/* ---- Dice ------------------------------------------------------------ */
+
+.dice {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  flex: none;
+}
+
+.dice:disabled {
+  cursor: not-allowed;
+}
+
+.dice__cube {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 22%;
+  background: linear-gradient(160deg, #ffffff 0%, #f4efff 100%);
+  box-shadow:
+    inset 0 -6px 0 rgba(0, 0, 0, 0.08),
+    0 6px 0 var(--dice-edge),
+    var(--shadow-md);
+  transition: transform var(--dur) var(--ease-bounce);
+  z-index: 2;
+}
+
+.dice:hover:not(:disabled) .dice__cube {
+  transform: translateY(-4px) rotate(-4deg) scale(1.04);
+}
+
+.dice:active:not(:disabled) .dice__cube {
+  transform: translateY(3px) scale(0.95);
+}
+
+.dice__shadow {
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  bottom: -10px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgba(84, 61, 120, 0.22);
+  filter: blur(4px);
+  transition: transform var(--dur) var(--ease-out);
+}
+
+.dice--rolling .dice__shadow {
+  transform: scaleX(0.7);
+}
+
+.dice__face {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 10%;
+  width: 68%;
+  height: 68%;
+  animation: pip-in calc(var(--dur) * 0.7) var(--ease-bounce);
+}
+
+@keyframes pip-in {
+  from {
+    transform: scale(0.75);
+    opacity: 0.4;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+.dice__pip {
+  border-radius: 50%;
+  background: var(--dice-color);
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.18);
+  align-self: center;
+  justify-self: center;
+  width: 88%;
+  height: 88%;
+}
+
+/* Tumbling: rotate and shake, never a clean spin -- a clean spin looks
+   mechanical, a wobble looks thrown. */
+.dice--rolling .dice__cube {
+  animation: dice-tumble 0.34s linear infinite;
+}
+
+@keyframes dice-tumble {
+  0% {
+    transform: rotate(0deg) translateY(0) scale(1);
+  }
+  25% {
+    transform: rotate(-16deg) translateY(-14px) scale(1.07);
+  }
+  50% {
+    transform: rotate(12deg) translateY(-4px) scale(0.97);
+  }
+  75% {
+    transform: rotate(-8deg) translateY(-12px) scale(1.04);
+  }
+  100% {
+    transform: rotate(0deg) translateY(0) scale(1);
+  }
+}
+
+/* Idle nudge: reminds the player the dice is theirs to press. */
+.dice:not(:disabled):not(.dice--rolling) .dice__cube {
+  animation: dice-idle 2.6s var(--ease-in-out) infinite;
+}
+
+@keyframes dice-idle {
+  0%,
+  88%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  92% {
+    transform: translateY(-7px) rotate(-5deg);
+  }
+  96% {
+    transform: translateY(-2px) rotate(3deg);
+  }
+}
+
+/* ---- HUD ------------------------------------------------------------- */
+
+.hud {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  flex: none;
+  width: min(300px, 32vw);
+}
+
+/*
+ * Stacked layout: the controls sit under the board, so every pixel they take
+ * comes straight out of the board. Two rows only -- the message, then the
+ * dice and the player chips side by side.
+ */
+@media (max-aspect-ratio: 1 / 1) {
+  .hud {
+    width: 100%;
+    flex: none;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    /* Room for the dice's drop shadow, which sits below its own box. */
+    padding-bottom: 12px;
+  }
+
+  .hud__message {
+    order: -1;
+    min-height: 0;
+    padding: 0.35em 1em;
+  }
+
+  .dice {
+    width: 78px;
+    height: 78px;
+  }
+
+  /*
+   * Home and Play Again are already in the top bar as icons on this layout,
+   * and a second copy costs a whole row of board.
+   */
+  .hud__actions {
+    display: none;
+  }
+}
+
+.hud__message {
+  min-height: 2.6em;
+  display: grid;
+  place-items: center;
+  padding: 0.5em 1.1em;
+  border-radius: var(--r-pill);
+  background: var(--paper);
+  box-shadow: var(--shadow-sm);
+  font-size: var(--t-sm);
+  font-weight: 800;
+  text-align: center;
+  color: var(--ink);
+  width: 100%;
+  animation: msg-in var(--dur) var(--ease-out);
+}
+
+@keyframes msg-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.players-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+@media (max-aspect-ratio: 1 / 1) {
+  .players-strip {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: auto;
+    flex: 0 1 auto;
+    max-width: calc(100% - 100px);
+  }
+}
+
+.player-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: var(--r-pill);
+  background: var(--paper);
+  box-shadow: var(--shadow-sm);
+  font-size: var(--t-xs);
+  font-weight: 800;
+  transition:
+    transform var(--dur) var(--ease-bounce),
+    box-shadow var(--dur) var(--ease-out),
+    background var(--dur) var(--ease-out);
+  border: 3px solid transparent;
+}
+
+/* The active player is marked three ways: border, scale and a ▶ marker.
+   Never colour alone. */
+.player-chip--active {
+  transform: scale(1.05);
+  border-color: currentColor;
+  box-shadow: var(--shadow-md);
+}
+
+.player-chip__dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex: none;
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.2);
+}
+
+.player-chip__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-chip__marker {
+  font-size: 0.9em;
+}
+
+.player-chip__progress {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-soft);
+  font-size: 0.92em;
+  white-space: nowrap;
+  flex: none;
+}
+
+.thinking-dots::after {
+  content: "";
+  animation: dots 1.2s steps(4, end) infinite;
+}
+
+@keyframes dots {
+  0% { content: ""; }
+  25% { content: "."; }
+  50% { content: ".."; }
+  75% { content: "..."; }
+}
+
+/* ---- Confetti canvas -------------------------------------------------- */
+
+.confetti-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  pointer-events: none;
+}
+
+/* ---- Victory ---------------------------------------------------------- */
+
+.victory {
+  text-align: center;
+}
+
+.victory__crown {
+  font-size: clamp(2.6rem, 9vh, 4.4rem);
+  line-height: 1;
+  animation: crown-pop 0.9s var(--ease-bounce) both;
+}
+
+/*
+ * The celebration has to FIT. A win screen that arrives with its buttons
+ * below the fold makes a child scroll at the one moment they should just be
+ * pleased, so the title here is a size down from the home-screen wordmark
+ * and the spacing is tighter.
+ */
+.victory .title {
+  font-size: var(--t-xl);
+}
+
+@keyframes crown-pop {
+  0% {
+    transform: scale(0) rotate(-30deg);
+  }
+  60% {
+    transform: scale(1.25) rotate(10deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+.victory__winner {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0 4px;
+  padding: 8px 18px;
+  border-radius: var(--r-pill);
+  background: var(--cream-2);
+  font-size: var(--t-lg);
+  font-weight: 800;
+}
+
+.victory__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 8px;
+  margin: 14px 0;
+}
+
+.stat {
+  padding: 9px 6px;
+  border-radius: var(--r-md);
+  background: var(--cream-2);
+}
+
+.stat__value {
+  font-size: var(--t-lg);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat__label {
+  font-size: var(--t-xs);
+  color: var(--ink-soft);
+  font-weight: 700;
+}
+
+.victory__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+
+
+/*
+ * Short screens -- a phone held sideways, or a very small window. The top bar
+ * already carries Home and Play Again as icons, so the labelled copies go,
+ * and the dice shrinks to leave the board its space.
+ */
+@media (max-height: 540px) {
+  .hud__actions {
+    display: none;
+  }
+
+  .dice {
+    width: 72px;
+    height: 72px;
+  }
+
+  .hud {
+    gap: 8px;
+  }
+
+  .player-chip {
+    padding: 5px 9px;
+  }
+}
