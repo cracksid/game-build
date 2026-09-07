@@ -47,7 +47,14 @@ jobs:
       - name: Build
         run: npm run build
 
+      # `enablement: true` lets this step turn Pages ON by itself, using the
+      # `pages: write` permission above. Without it the step fails on a repo
+      # where Pages has never been set up -- and the Settings page offers no
+      # "GitHub Actions" source to pick until a site exists, which is a neat
+      # little deadlock. This breaks it without anyone visiting Settings.
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - uses: actions/upload-pages-artifact@v3
         with:
